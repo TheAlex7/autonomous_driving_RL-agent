@@ -1,6 +1,7 @@
 # changes made: 
 #   completely redesigned _create_track()
 #   added goal checking in step() for early episode returns
+#   changed to discrete action state - dare
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
@@ -218,7 +219,7 @@ class CityDrive(gym.Env, EzPickle):
         verbose: bool = False,
         lap_complete_percent: float = 1.0,
         domain_randomize: bool = False,
-        continuous: bool = True,
+        continuous: bool = False, # darius edit to be DQN
         num_streets: int = 4
     ):
         EzPickle.__init__(
