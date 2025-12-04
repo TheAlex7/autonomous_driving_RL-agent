@@ -319,7 +319,22 @@ class CityDrive(gym.Env, EzPickle):
             idx = self.np_random.integers(3)
             self.grass_color[idx] += 20
 
+    # check if a coordinate is inside a polygon
+    def _point_in_poly(self, x, y, poly):
+        # each polygon is made of 4 corners, each corner location is given as xy-coordinates 
+        inside = False
+        n = len(poly) # all road polygons will have 4 points only, so n=4 typically
+        p1x, p1y = poly[0]
+        for i in range(n+1):
+            p2x, p2y = poly[i % n]
+            if ((p1y > y) != (p2y > y)) and (x < (p2x - p1x) * (y - p1y) / (p2y - p1y) + p1x):
+                inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
+
     def _create_track(self):
+        
+
         # Generate a square city-grid.
         # Start is (0,0) and Goal is random intersection.
 
@@ -492,6 +507,7 @@ class CityDrive(gym.Env, EzPickle):
                 )
         self.car = Car(self.world, *self.track[0][1:4])
 
+
         if self.render_mode == "human":
             self.render()
         return self.step(None)[0], {}
@@ -542,8 +558,10 @@ class CityDrive(gym.Env, EzPickle):
                 info["lap_finished"] = False
                 step_reward = -100
 
+            car_x, car_y = self.car.hull.position
             # grass penalty
-            on_road = len(self.car.tiles) > 0
+            on_road = any(self._point_in_poly(car_x, car_y, poly) 
+                        for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
                 self.reward -= 200.0
                 step_reward -= 200 # major penalty
@@ -552,7 +570,7 @@ class CityDrive(gym.Env, EzPickle):
             # goal check
             if self.end_pos is not None:
                 # distance squared from goal
-                dist_sq = (self.car.hull.position[0] - self.end_pos[0]) ** 2 + (self.car.hull.position[1] - self.end_pos[1]) ** 2
+                dist_sq = (car_x - self.end_pos[0]) ** 2 + (car_y - self.end_pos[1]) ** 2
                 goal_radius = TRACK_WIDTH * 1.2 # check
                 # print(dist_sq,goal_radius)
                 if dist_sq < goal_radius ** 2:
