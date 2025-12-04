@@ -273,8 +273,8 @@ class CityDrive(gym.Env, EzPickle):
 
         self.observation_space = spaces.Dict({
             "image_array": spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8), # 255 x 255 image
-            "agent_loc"  : spaces.Box(-PLAYFIELD, PLAYFIELD, shape=(2,), dtype=np.float32),   # [x, y] coordinates
-            "target_loc" : spaces.Box(-PLAYFIELD, PLAYFIELD, shape=(2,), dtype=np.float32)    # [x, y] coordinates
+            "agent_loc"  : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32),   # [x, y] coordinates
+            "target_loc" : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32)    # [x, y] coordinates
         })
 
         self.render_mode = render_mode
@@ -542,9 +542,12 @@ class CityDrive(gym.Env, EzPickle):
                 info["lap_finished"] = False
                 step_reward = -100
 
-            # if (False): # when car touches grass
-            #     step_reward -= 100 # major penalty
-            #     terminated = True
+            # grass penalty
+            on_road = len(self.car.tiles) > 0
+            if not on_road: # when car touches grass
+                self.reward -= 200.0
+                step_reward -= 200 # major penalty
+                terminated = True
 
             # goal check
             if self.end_pos is not None:
@@ -554,8 +557,8 @@ class CityDrive(gym.Env, EzPickle):
                 # print(dist_sq,goal_radius)
                 if dist_sq < goal_radius ** 2:
                     # print("should end now")
-                    step_reward = 1000
-                    self.reward += 1000.0   # goal reward
+                    step_reward = 200
+                    self.reward += 200.0   # goal reward
                     terminated = True       # end episode
 
         if self.render_mode == "human":
