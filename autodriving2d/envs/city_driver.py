@@ -560,8 +560,7 @@ class CityDrive(gym.Env, EzPickle):
 
             car_x, car_y = self.car.hull.position
             # grass penalty
-            on_road = any(self._point_in_poly(car_x, car_y, poly) 
-                        for poly, _ in self.road_poly)
+            on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
                 self.reward -= 200.0
                 step_reward -= 200 # major penalty
