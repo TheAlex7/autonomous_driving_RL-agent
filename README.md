@@ -1,33 +1,19 @@
-# Gymnasium Examples
-Some simple examples of Gymnasium environments and wrappers.
-For some explanations of these examples, see the [Gymnasium documentation](https://gymnasium.farama.org).
+# 271P Project: Autonomous Driving and Pathfinding in a 2D environment.
+The goal of this project is to create a Reinforcement Learning Agent with the use of Gymnasium. We decided we wanted to create an agent that can operate a car in a 2D plane and so we thought to modify Box2D's Car Racing in such a way that would reflect a car driving in a grid-like city.
 
-### Environments
-This repository hosts the examples that are shown [on the environment creation documentation](https://gymnasium.farama.org/tutorials/gymnasium_basics/environment_creation/).
-- `GridWorldEnv`: Simplistic implementation of gridworld environment
+## Custom Gym Environment Quick start
+### Step 1 
+Install Anaconda Navigator or MiniConda [here.](https://www.anaconda.com/download)
 
-### Wrappers
-This repository hosts the examples that are shown [on wrapper documentation](https://gymnasium.farama.org/api/wrappers/).
-- `ClipReward`: A `RewardWrapper` that clips immediate rewards to a valid range
-- `DiscreteActions`: An `ActionWrapper` that restricts the action space to a finite subset
-- `RelativePosition`: An `ObservationWrapper` that computes the relative position between an agent and a target
-- `ReacherRewardWrapper`: Allow us to weight the reward terms for the reacher environment
-
-### Contributing
-If you would like to contribute, follow these steps:
-- Fork this repository
-- Clone your fork
-- Set up pre-commit via `pre-commit install`
-
-PRs may require accompanying PRs in [the documentation repo](https://github.com/Farama-Foundation/Gymnasium/tree/main/docs).
-
-
-## Installation
-
-To install your new environment, run the following commands:
-
-```{shell}
-cd autodriving2d
-pip install -e .
+### Step 2
+Install our custom conda environment.
 ```
-
+conda env create -f environment.yml
+```
+### Step 3
+Activate the conda environment.
+```
+conda activate autodriving2d
+```
+### Step 4
+Run ```run_env.py``` to confirm the conda and gymnasium environments are running properly. You may also look through this file to see an example on how to access our gymnasium environment.
