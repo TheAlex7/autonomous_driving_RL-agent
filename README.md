@@ -17,3 +17,6 @@ conda activate autodriving2d
 ```
 ### Step 4
 Run ```run_env.py``` to confirm the conda and gymnasium environments are running properly. You may also look through this file to see an example on how to access our gymnasium environment.
+```
+python run_env.py
+```
