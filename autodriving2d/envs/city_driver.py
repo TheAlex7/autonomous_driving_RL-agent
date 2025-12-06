@@ -1,6 +1,7 @@
 # changes made: 
 #   completely redesigned _create_track()
 #   added goal checking in step() for early episode returns
+#   car is penalized for driving on grass.
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
@@ -228,6 +229,7 @@ class CityDrive(gym.Env, EzPickle):
             lap_complete_percent,
             domain_randomize,
             continuous,
+            num_streets
         )
         self.continuous = continuous
         self.domain_randomize = domain_randomize
@@ -512,7 +514,6 @@ class CityDrive(gym.Env, EzPickle):
             self.render()
         return self.step(None)[0], {}
     
-    # currently, car is not directly penalized for driving on grass.
     def step(self, action: np.ndarray | int):
         assert self.car is not None
         if action is not None:
