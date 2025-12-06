@@ -1,11 +1,7 @@
-from autodriving2d.envs import CityDrive
+from autodriving2d.envs import CityDrive # ensure env has been registered
+import gymnasium as gym
 import numpy as np
 import pygame
-
-env = CityDrive(render_mode="human")
-obs, info = env.reset()
-
-a = np.array([0.0, 0.0, 0.0])
 
 def register_input():
     global quit, restart
@@ -37,22 +33,26 @@ def register_input():
         if event.type == pygame.QUIT:
             quit = True
 
-env = CityDrive(render_mode="human")
+if __name__ == "__main__":
+    env = CityDrive(render_mode="human")
 
-quit = False
-while not quit:
-    env.reset()
-    total_reward = 0.0
-    steps = 0
-    restart = False
-    while True:
-        register_input()
-        s, r, terminated, truncated, info = env.step(a)
-        total_reward += r
-        if steps % 200 == 0 or terminated or truncated:
-            print("\naction " + str([f"{x:+0.2f}" for x in a]))
-            print(f"step {steps} total_reward {total_reward:+0.2f}")
-        steps += 1
-        if terminated or truncated or restart or quit:
-            break
-env.close()
+    obs, info = env.reset()
+    a = np.array([0.0, 0.0, 0.0])
+
+    quit = False
+    while not quit:
+        env.reset()
+        total_reward = 0.0
+        steps = 0
+        restart = False
+        while True:
+            register_input()
+            s, r, terminated, truncated, info = env.step(a)
+            total_reward += r
+            if steps % 200 == 0 or terminated or truncated:
+                print("\naction " + str([f"{x:+0.2f}" for x in a]))
+                print(f"step {steps} total_reward {total_reward:+0.2f}")
+            steps += 1
+            if terminated or truncated or restart or quit:
+                break
+    env.close()

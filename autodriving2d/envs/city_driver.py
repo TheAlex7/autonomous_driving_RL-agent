@@ -2,6 +2,7 @@
 #   completely redesigned _create_track()
 #   added goal checking in step() for early episode returns
 #   changed to discrete action state - dare
+#   car is penalized for driving on grass.
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
@@ -229,6 +230,7 @@ class CityDrive(gym.Env, EzPickle):
             lap_complete_percent,
             domain_randomize,
             continuous,
+            num_streets
         )
         self.continuous = continuous
         self.domain_randomize = domain_randomize
@@ -274,8 +276,8 @@ class CityDrive(gym.Env, EzPickle):
 
         self.observation_space = spaces.Dict({
             "image_array": spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8), # 255 x 255 image
-            "agent_loc"  : spaces.Box(-PLAYFIELD, PLAYFIELD, shape=(2,), dtype=np.float32),   # [x, y] coordinates
-            "target_loc" : spaces.Box(-PLAYFIELD, PLAYFIELD, shape=(2,), dtype=np.float32)    # [x, y] coordinates
+            "agent_loc"  : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32),   # [x, y] coordinates
+            "target_loc" : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32)    # [x, y] coordinates
         })
 
         self.render_mode = render_mode
@@ -320,7 +322,22 @@ class CityDrive(gym.Env, EzPickle):
             idx = self.np_random.integers(3)
             self.grass_color[idx] += 20
 
+    # check if a coordinate is inside a polygon
+    def _point_in_poly(self, x, y, poly):
+        # each polygon is made of 4 corners, each corner location is given as xy-coordinates 
+        inside = False
+        n = len(poly) # all road polygons will have 4 points only, so n=4 typically
+        p1x, p1y = poly[0]
+        for i in range(n+1):
+            p2x, p2y = poly[i % n]
+            if ((p1y > y) != (p2y > y)) and (x < (p2x - p1x) * (y - p1y) / (p2y - p1y) + p1x):
+                inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
+
     def _create_track(self):
+        
+
         # Generate a square city-grid.
         # Start is (0,0) and Goal is random intersection.
 
@@ -493,11 +510,11 @@ class CityDrive(gym.Env, EzPickle):
                 )
         self.car = Car(self.world, *self.track[0][1:4])
 
+
         if self.render_mode == "human":
             self.render()
         return self.step(None)[0], {}
     
-    # currently, car is not directly penalized for driving on grass.
     def step(self, action: np.ndarray | int):
         assert self.car is not None
         if action is not None:
@@ -543,20 +560,24 @@ class CityDrive(gym.Env, EzPickle):
                 info["lap_finished"] = False
                 step_reward = -100
 
-            # if (False): # when car touches grass
-            #     step_reward -= 100 # major penalty
-            #     terminated = True
+            car_x, car_y = self.car.hull.position
+            # grass penalty
+            on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
+            if not on_road: # when car touches grass
+                self.reward -= 200.0
+                step_reward -= 200 # major penalty
+                terminated = True
 
             # goal check
             if self.end_pos is not None:
                 # distance squared from goal
-                dist_sq = (self.car.hull.position[0] - self.end_pos[0]) ** 2 + (self.car.hull.position[1] - self.end_pos[1]) ** 2
+                dist_sq = (car_x - self.end_pos[0]) ** 2 + (car_y - self.end_pos[1]) ** 2
                 goal_radius = TRACK_WIDTH * 1.2 # check
                 # print(dist_sq,goal_radius)
                 if dist_sq < goal_radius ** 2:
                     # print("should end now")
-                    step_reward = 1000
-                    self.reward += 1000.0   # goal reward
+                    step_reward = 200
+                    self.reward += 200.0   # goal reward
                     terminated = True       # end episode
 
         if self.render_mode == "human":
