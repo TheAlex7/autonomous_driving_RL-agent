@@ -261,6 +261,7 @@ class CityDrive(gym.Env, EzPickle):
                             tuple[np.float32,np.float32], \
                             tuple[np.float32,np.float32], \
                             tuple[np.float32,np.float32]] | None = None 
+        self.old_dist = 0
         if num_streets < 2:
             self.vertical_streets = 2
             self.horizontal_streets = 2
@@ -459,6 +460,7 @@ class CityDrive(gym.Env, EzPickle):
 
         self.start_pos = (start_x, start_y)
         self.end_pos = (goal_x, goal_y)
+        self.old_dist = np.sqrt((start_x - goal_x)**2 + (start_y - goal_y)**2) # inital distance from start to end
 
         # Define Goal Intersection Polygon
         GOAL_SIZE = TRACK_WIDTH   # half-size of the square goal area
@@ -518,6 +520,7 @@ class CityDrive(gym.Env, EzPickle):
         self.car = Car(self.world, *self.track[0][1:4])
 
 
+
         if self.render_mode == "human":
             self.render()
         return self.step(None)[0], {}
@@ -536,7 +539,7 @@ class CityDrive(gym.Env, EzPickle):
                         f"you passed the invalid action `{action}`. "
                         f"The supported action_space is `{self.action_space}`"
                     )
-                self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
+                self.car.steer(-1.1 * (action == 1) + 1.1 * (action == 2))
                 self.car.gas(0.2 * (action == 3))
                 self.car.brake(0.8 * (action == 4))
 
@@ -550,13 +553,33 @@ class CityDrive(gym.Env, EzPickle):
         terminated = False
         truncated = False
         info = {}
-        if action is not None:  # First step without action, called from reset()
-            self.reward -= 0.1
-            # We actually don't want to count fuel spent, we want car to be faster.
-            # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
-            self.car.fuel_spent = 0.0
-            step_reward = self.reward - self.prev_reward
-            self.prev_reward = self.reward
+        car_x, car_y = self.car.hull.position
+        if action is not None and action is not 0:  # First step without action, called from reset() also makes sure its moving
+
+            # Small reward for  moving (action is not 0, do nothing)
+            step_reward += 0.1
+
+            # Distance to goal (shaping)
+            if self.end_pos is not None:
+                new_dist = np.sqrt((car_x - self.end_pos[0])**2 + (car_y - self.end_pos[1])**2)
+                step_reward += (self.old_dist - new_dist) * 0.5   # reward for progress
+                self.old_dist = new_dist
+
+            # Penalty if off road
+            on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
+            if not on_road:
+                step_reward -= 10
+
+            # Goal reached
+            goal_radius = TRACK_WIDTH * 4 # check
+            if self.end_pos is not None:
+                new_dist = np.sqrt((car_x - self.end_pos[0])**2 + (car_y - self.end_pos[1])**2)
+                if new_dist < goal_radius:
+                    step_reward += 200
+                    terminated = True
+
+            self.prev_reward = step_reward
+
             # if self.tile_visited_count == len(self.track) or self.new_lap:
             #     # Termination due to finishing lap
             #     terminated = True
@@ -566,26 +589,8 @@ class CityDrive(gym.Env, EzPickle):
                 terminated = True
                 info["lap_finished"] = False
                 step_reward = -100
-
-            car_x, car_y = self.car.hull.position
-            # grass penalty
-            on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
-            if not on_road: # when car touches grass
-                self.reward -= 200.0
-                step_reward -= 200 # major penalty
-                terminated = True
-
-            # goal check
-            if self.end_pos is not None:
-                # distance squared from goal
-                dist_sq = (car_x - self.end_pos[0]) ** 2 + (car_y - self.end_pos[1]) ** 2
-                goal_radius = TRACK_WIDTH * 1.2 # check
-                # print(dist_sq,goal_radius)
-                if dist_sq < goal_radius ** 2:
-                    # print("should end now")
-                    step_reward = 200
-                    self.reward += 200.0   # goal reward
-                    terminated = True       # end episode
+        else:
+            step_reward -= 1.5 # MOOOOOOVE DO SOMETHING
 
         if self.render_mode == "human":
             self.render()
