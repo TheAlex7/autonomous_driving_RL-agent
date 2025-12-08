@@ -1,11 +1,12 @@
 # changes made: 
 #   completely redesigned _create_track()
 #   added goal checking in step() for early episode returns
+#       Added Goal intersection coloring (always yellow, no normalization)
 #   car is penalized for driving on grass.
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
-
+from typing import List
 import numpy as np
 
 import gymnasium as gym
@@ -253,7 +254,12 @@ class CityDrive(gym.Env, EzPickle):
         self.fd_tile = fixtureDef(
             shape=polygonShape(vertices=[(0, 0), (1, 0), (1, -1), (0, -1)])
         )
-        self.end_pos: tuple | None = None
+        self.end_pos: tuple[int,int] | None = None
+        # list of coordinates for goal intersection polygon. Default none
+        self.end_poly: List[tuple[np.float32,np.float32], \
+                            tuple[np.float32,np.float32], \
+                            tuple[np.float32,np.float32], \
+                            tuple[np.float32,np.float32]] | None = None 
         if num_streets < 2:
             self.vertical_streets = 2
             self.horizontal_streets = 2
@@ -450,24 +456,19 @@ class CityDrive(gym.Env, EzPickle):
             alpha = 0.0   # unused
             self.track.append((alpha, beta, x, y))
 
-        # find the tile whose center is closest to the goal intersection
-        closest_idx = None
-        closest_dist = 1e9
-        for i, tile in enumerate(road_bodies):
-            cx = sum(v[0] for v in self.road_poly[i][0]) / 4
-            cy = sum(v[1] for v in self.road_poly[i][0]) / 4
-            dist = (cx - goal_x)**2 + (cy - goal_y)**2
-            if dist < closest_dist:
-                closest_dist = dist
-                closest_idx = i
-
-        # paint goal tile yellow
-        road_bodies[closest_idx].color = np.array([255, 255, 0])
-        poly, _ = self.road_poly[closest_idx]
-        self.road_poly[closest_idx] = (poly, np.array([255, 255, 0]))
-        
         self.start_pos = (start_x, start_y)
         self.end_pos = (goal_x, goal_y)
+
+        # Define Goal Intersection Polygon
+        GOAL_SIZE = TRACK_WIDTH   # half-size of the square goal area
+
+        left1  = (goal_x - GOAL_SIZE, goal_y + GOAL_SIZE)
+        right1 = (goal_x + GOAL_SIZE, goal_y + GOAL_SIZE)
+        right2 = (goal_x + GOAL_SIZE, goal_y - GOAL_SIZE)
+        left2  = (goal_x - GOAL_SIZE, goal_y - GOAL_SIZE)
+
+        self.end_poly = [left1, right1, right2, left2]
+
 
         return True
 
@@ -489,6 +490,12 @@ class CityDrive(gym.Env, EzPickle):
         self.t = 0.0
         self.new_lap = False
         self.road_poly = []
+        self.end_pos: tuple[int,int] | None = None
+        # list of coordinates for goal intersection polygon. Default none
+        self.end_poly: List[tuple[np.float32,np.float32], \
+                            tuple[np.float32,np.float32], \
+                            tuple[np.float32,np.float32], \
+                            tuple[np.float32,np.float32]] | None = None 
 
         if self.domain_randomize:
             randomize = True
@@ -698,6 +705,10 @@ class CityDrive(gym.Env, EzPickle):
             poly = [(p[0], p[1]) for p in poly]
             color = [int(c) for c in color]
             self._draw_colored_polygon(self.surf, poly, color, zoom, translation, angle)
+
+        # coloring goal intersection yellow
+        c_yellow = np.array([255,255,0])
+        self._draw_colored_polygon(self.surf, self.end_poly, c_yellow, zoom, translation, angle)
 
     def _render_indicators(self, W, H):
         s = W / 40.0
