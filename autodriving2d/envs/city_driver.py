@@ -9,6 +9,7 @@ import math
 from typing import List
 import numpy as np
 import random
+import cv2
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -96,7 +97,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 0 #1000.0 / len(self.env.track) # Changed new tile reward to static value of 30
+                self.env.reward += 500.0 / len(self.env.track) # Changed new tile reward to static value of 30
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -109,6 +110,10 @@ class FrictionDetector(contactListener):
         else:
             obj.tiles.remove(tile)
 
+def resize_image(img):
+    # img is your (H, W, 3) uint8 array
+    img_resized = cv2.resize(img, (96, 96), interpolation=cv2.INTER_AREA)
+    return img_resized
 
 class CityDrive(gym.Env, EzPickle):
     """
@@ -283,9 +288,8 @@ class CityDrive(gym.Env, EzPickle):
             # do nothing, right, left, gas, brake
 
         self.observation_space = spaces.Dict({
-            "image_array": spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8), # 255 x 255 image
-            "agent_loc"  : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32),   # [x, y] coordinates
-            "target_loc" : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32)    # [x, y] coordinates
+            "image_array": spaces.Box(low=0, high=255, shape=(STATE_W, STATE_H, 3), dtype=np.uint8), # 255 x 255 image
+            "dist_from_goal"  : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32),   # [goal_x - x, goal_y - y]
         })
 
         self.render_mode = render_mode
@@ -496,6 +500,8 @@ class CityDrive(gym.Env, EzPickle):
         self.new_lap = False
         self.road_poly = []
         self.end_pos: tuple[int,int] | None = None
+        self.dist = 0
+        self.prev_dist = 0
         # list of coordinates for goal intersection polygon. Default none
         self.end_poly: List[tuple[np.float32,np.float32], \
                             tuple[np.float32,np.float32], \
@@ -575,8 +581,8 @@ class CityDrive(gym.Env, EzPickle):
             # grass penalty
             on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
-                self.reward -= 4.0
-                step_reward -= 4 # major penalty
+                self.reward -= 5.0
+                step_reward -= 5 # major penalty
                 # terminated = True # early stopping after sufficient early training
 
             # goal check
@@ -594,8 +600,10 @@ class CityDrive(gym.Env, EzPickle):
                     # small reward for getting closer
                     self.dist = math.sqrt(dist_sq)
                     step_distance = self.prev_dist - self.dist
-                    self.reward +=  step_distance * 2e-3
-                    step_reward += step_distance * 2e-3
+                    self.prev_dist = self.dist
+
+                    self.reward +=  step_distance * 2e-1
+                    step_reward += step_distance * 2e-1
 
         if self.render_mode == "human":
             self.render()
@@ -669,13 +677,13 @@ class CityDrive(gym.Env, EzPickle):
             self.screen.blit(self.surf, (0, 0))
             pygame.display.flip()
         elif mode == "rgb_array":
-            return {"image_array":self._create_image_array(self.surf, (VIDEO_W, VIDEO_H)), 
-                    "agent_loc": (self.car.hull.position[0],self.car.hull.position[1]),
-                    "target_loc" : self.end_pos}
+            img = self._create_image_array(self.surf, (VIDEO_W, VIDEO_H))
+            return {"image_array":img, 
+                    "dist_from_goal": (self.end_pos[0] - self.car.hull.position[0], self.end_pos[1] - self.car.hull.position[1]),}
         elif mode == "state_pixels":
-            return {"image_array":self._create_image_array(self.surf, (STATE_W, STATE_H)), 
-                    "agent_loc": (self.car.hull.position[0],self.car.hull.position[1]),
-                    "target_loc" : self.end_pos}
+            img = self._create_image_array(self.surf, (STATE_H, STATE_W))
+            return {"image_array":img, 
+                    "dist_from_goal": (self.end_pos[0] - self.car.hull.position[0], self.end_pos[1] - self.car.hull.position[1]),}
         else:
             return self.isopen
 
