@@ -7,6 +7,7 @@
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
+import random
 from typing import List
 import numpy as np
 
@@ -363,9 +364,10 @@ class CityDrive(gym.Env, EzPickle):
 
         # Generate a square city-grid.
         # Start is (0,0) and Goal is random intersection.
+        # Randomize env a bit for more robust training
+        GRID_W = random.randint(2,self.vertical_streets)  # number of vertical streets
+        GRID_H = random.randint(2,self.horizontal_streets)  # horizontal streets
 
-        GRID_W = self.vertical_streets  # number of vertical streets
-        GRID_H = self.horizontal_streets  # horizontal streets
         BLOCK = 40  # grid spacing (size of each block)
         ROAD_WIDTH = TRACK_WIDTH
 
@@ -604,7 +606,7 @@ class CityDrive(gym.Env, EzPickle):
         # First step without action, called from reset() also makes sure its moving
         # make sure its not just continuously braking
 
-        # Small reward for moving (action is not 0, do nothing)
+        # Small push for spending too much time
         step_reward -= 0.05  # Claude: bullying :3
 
         # Distance to goal (shaping)
@@ -615,6 +617,20 @@ class CityDrive(gym.Env, EzPickle):
             step_reward += (self.old_dist - new_dist) * 0.5  # reward for progress
             self.old_dist = new_dist
 
+        # Goal reached
+        # goal_radius = TRACK_WIDTH * 4  # check
+        # if new_dist < goal_radius:
+        #     step_reward += 100
+        #     # changed from +200 to +50
+        #     terminated = True
+
+        # Goal reached - check if inside the yellow goal polygon
+        if self.end_pos is not None and self.end_poly is not None:
+            if self._point_in_poly(car_x, car_y, self.end_poly):
+                step_reward += 100  # Increased from 50 for stronger signal
+                terminated = True
+                info["goal_reached"] = True
+
         # Velocity toward goal (encourages moving in right direction)
         velocity_toward_goal = self._get_velocity_toward_goal()
         step_reward += velocity_toward_goal * 0.05
@@ -624,30 +640,33 @@ class CityDrive(gym.Env, EzPickle):
             self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly
         )
         if not on_road:
-            step_reward -= 0.5
-            # changed from -10 to -0.5 via Claude
-
-        # added via Claude
-        # Reward staying on road
-        if on_road:
+            step_reward -= 1.0  # changed from -10 then 0.5
+        else:
             step_reward += 0.05
+            # Only reward being on road if MOVING toward goal
+            if velocity_toward_goal > 0.5:  # Only if moving forward
+                step_reward += 0.1
 
         # Penalize excessive steering or braking (smooth driving)
         if action == 1 or action == 2:  # steering
             step_reward -= 0.01
+        # Reward for using gas (encourage forward movement)
+        if action == 3:  # gas
+            step_reward += 0.05
         if action == 4:  # braking
-            step_reward -= 0.02
+            step_reward -= 0.2  # changed from 0.02
 
-        # Goal reached
-        goal_radius = TRACK_WIDTH * 4  # check
-        if self.end_pos is not None:
-            new_dist = np.sqrt(
-                (car_x - self.end_pos[0]) ** 2 + (car_y - self.end_pos[1]) ** 2
-            )
-            if new_dist < goal_radius:
-                step_reward += 50
-                # changed from +200 to +50
-                terminated = True
+        # Extra penalty if braking while not moving much
+        speed = np.sqrt(
+            self.car.hull.linearVelocity[0] ** 2 + self.car.hull.linearVelocity[1] ** 2
+        )
+        if speed < 1.0:  # Almost stopped
+            step_reward -= 0.3  # Severe penalty for sitting still with brake
+
+        # Add timeout truncation
+        if self.steps_taken >= self.max_episode_steps:
+            truncated = True
+            step_reward -= 20  # Small penalty for timeout, changed from 10
 
         self.prev_reward = step_reward
 
