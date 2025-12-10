@@ -6,7 +6,7 @@
 
 # REWARD SYSTEM
 # every new road visited: 0 # no reward
-# each new step: -0.1 + (old_dist - new_dist) * 10
+# each new step: -0.1 + (old_dist - new_dist) * 12
 # goal reached: +100 (terminates)
 # grass penalty: -50 (no termination)
 # out of bounds: -100 (terminates)
@@ -603,9 +603,7 @@ class CityDrive(gym.Env, EzPickle):
                 else:
                     # reward for getting closer
                     self.dist = np.linalg.norm(self.car.hull.position - self.end_pos)
-        
-                    scaled_step_distance = (self.prev_dist - self.dist) * 10
-
+                    scaled_step_distance = (self.prev_dist - self.dist) * 12
                     self.prev_dist = self.dist
                     
                     # distance

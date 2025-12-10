@@ -1,1 +1,1 @@
-ppo initial is a pretrained model with 300,000 steps, can be used as a baseline for continuous training.
+ppo initial is a pretrained model with 300,000 steps (usually), can be used as a baseline for continuous training.
