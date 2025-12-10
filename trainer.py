@@ -9,7 +9,8 @@ def make_env():
 
 if __name__ == "__main__":
     steps = 100_000
-    initial_model_path = "models/ppo_initial.zip"
+    initial_model = "models/ppo_initial"
+    initial_model_path = initial_model + ".zip"
 
     # Making sure new model wont override others
     base_path = "models/ppo_citydrive" 
@@ -19,7 +20,7 @@ if __name__ == "__main__":
             break
 
     # Multiprocess training to speed up dev
-    env = SubprocVecEnv([make_env for _ in range(5)]) 
+    env = SubprocVecEnv([make_env for _ in range(2)]) 
 
     if not os.path.isfile(initial_model_path):
         # new initial model if it doesn't exist already
@@ -28,10 +29,10 @@ if __name__ == "__main__":
                     verbose=1, 
                     learning_rate=3e-4
                     )
+        steps = 300_000 # should be trained on 300,000 time steps
         out_path = "models/ppo_initial"
-        steps = 300_000
     else:
-        model = PPO.load(initial_model_path, env=env)
+        model = PPO.load(initial_model, env=env)
 
     # Train
     print("Training...")
