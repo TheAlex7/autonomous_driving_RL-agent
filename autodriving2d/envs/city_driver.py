@@ -5,11 +5,16 @@
 #   car is penalized for driving on grass.
 
 # REWARD SYSTEM
-# every new road visited: 0 # no reward
-# each new step: -0.1 + (old_dist - new_dist) * 12
-# goal reached: +100 (terminates)
-# grass penalty: -50 (no termination)
-# out of bounds: -100 (terminates)
+NEW_ROAD = 0 # every new road visited: 0 # no reward
+# each new step: <TIME_PUNISHMENT> + (old_dist - new_dist) * DIST_SCALE
+TIME_PUNISHMENT = -0.1
+DIST_SCALE = 100
+
+GRASS_PENALTY = -50 # grass penalty: -50 (no termination)
+GRASS_TERMINATE = False
+
+GOAL_REWARD = 100 # goal reached: +100 (terminates)
+OUT_OF_BOUNDS_PENALTY = -100 # out of bounds: -100 (terminates)
 
 __credits__ = ["Andrea PIERRÉ"]
 
@@ -105,7 +110,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 0 #500.0 / len(self.env.track) # Changed new tile reward to nothing
+                self.env.reward += NEW_ROAD #500.0 / len(self.env.track) # Changed new tile reward to nothing
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -565,12 +570,12 @@ class CityDrive(gym.Env, EzPickle):
         truncated = False
         info = {}
         if action is not None:  # First step without action, called from reset()
-            self.reward -= 0.1
+            # self.reward -= 0.1
             # We actually don't want to count fuel spent, we want car to be faster.
             # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
-            self.car.fuel_spent = 0.0
-            step_reward = self.reward - self.prev_reward
-            self.prev_reward = self.reward
+            # self.car.fuel_spent = 0.0
+            # step_reward = self.reward - self.prev_reward
+            # self.prev_reward = self.reward
             # if self.tile_visited_count == len(self.track) or self.new_lap:
             #     # Termination due to finishing lap
             #     terminated = True
@@ -579,36 +584,39 @@ class CityDrive(gym.Env, EzPickle):
             if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
                 terminated = True
                 info["lap_finished"] = False
-                step_reward = -100
+                step_reward = OUT_OF_BOUNDS_PENALTY
 
             car_x, car_y = self.car.hull.position
             # grass penalty
             on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
-                self.reward -= 50.0
-                step_reward -= 50 # major penalty
-                # terminated = True # early stopping after sufficient early training
+                if GRASS_TERMINATE:
+                    step_reward = 50 # major penalty
+                    terminated = True # early stopping after sufficient early training
+                else:
+                    self.reward += GRASS_PENALTY
 
             # goal check
-            if self.end_pos is not None:
+            if self.end_pos is not None and not terminated:
                 # distance squared from goal
                 dist_sq = (car_x - self.end_pos[0]) ** 2 + (car_y - self.end_pos[1]) ** 2
                 goal_radius = TRACK_WIDTH * 1.2 # check
                 # print(dist_sq,goal_radius)
                 if dist_sq < goal_radius ** 2:
                     # print("should end now")
-                    self.reward += 100.0   # goal reward
-                    step_reward = 100
+                    # self.reward += GOAL_REWARD  
+                    step_reward = GOAL_REWARD
                     terminated = True       # end episode
                 else:
                     # reward for getting closer
                     self.dist = np.linalg.norm(self.car.hull.position - self.end_pos)
-                    scaled_step_distance = (self.prev_dist - self.dist) * 12
+                    scaled_step_distance = TIME_PUNISHMENT + (self.prev_dist - self.dist) * DIST_SCALE
                     self.prev_dist = self.dist
                     
-                    # distance
                     self.reward +=  scaled_step_distance
-                    step_reward += scaled_step_distance
+                    step_reward = self.reward - self.prev_reward
+                    self.prev_reward = self.reward
+
 
         if self.render_mode == "human":
             self.render()
