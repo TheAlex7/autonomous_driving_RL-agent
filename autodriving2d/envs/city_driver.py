@@ -3,6 +3,14 @@
 #   added goal checking in step() for early episode returns
 #       Added Goal intersection coloring (always yellow, no normalization)
 #   car is penalized for driving on grass.
+
+# REWARD SYSTEM
+# every new road visited: 0 # no reward
+# each new step: -0.1 + (old_dist - new_dist) * 10
+# goal reached: +100 (terminates)
+# grass penalty: -50 (no termination)
+# out of bounds: -100 (terminates)
+
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
@@ -97,7 +105,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 500.0 / len(self.env.track) # Changed new tile reward to static value of 30
+                self.env.reward += 0 #500.0 / len(self.env.track) # Changed new tile reward to nothing
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -109,11 +117,6 @@ class FrictionDetector(contactListener):
                     self.env.new_lap = True
         else:
             obj.tiles.remove(tile)
-
-def resize_image(img):
-    # img is your (H, W, 3) uint8 array
-    img_resized = cv2.resize(img, (96, 96), interpolation=cv2.INTER_AREA)
-    return img_resized
 
 class CityDrive(gym.Env, EzPickle):
     """
@@ -501,7 +504,7 @@ class CityDrive(gym.Env, EzPickle):
         self.road_poly = []
         self.end_pos: tuple[int,int] | None = None
         self.dist = 0
-        self.prev_dist = 0
+
         # list of coordinates for goal intersection polygon. Default none
         self.end_poly: List[tuple[np.float32,np.float32], \
                             tuple[np.float32,np.float32], \
@@ -526,6 +529,7 @@ class CityDrive(gym.Env, EzPickle):
                     "instances of this message)"
                 )
         self.car = Car(self.world, *self.track[0][1:4])
+        self.prev_dist = np.linalg.norm(self.car.hull.position- self.end_pos)
 
 
         if self.render_mode == "human":
@@ -581,8 +585,8 @@ class CityDrive(gym.Env, EzPickle):
             # grass penalty
             on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
-                self.reward -= 5.0
-                step_reward -= 5 # major penalty
+                self.reward -= 50.0
+                step_reward -= 50 # major penalty
                 # terminated = True # early stopping after sufficient early training
 
             # goal check
@@ -597,13 +601,16 @@ class CityDrive(gym.Env, EzPickle):
                     step_reward = 100
                     terminated = True       # end episode
                 else:
-                    # small reward for getting closer
-                    self.dist = math.sqrt(dist_sq)
-                    step_distance = self.prev_dist - self.dist
-                    self.prev_dist = self.dist
+                    # reward for getting closer
+                    self.dist = np.linalg.norm(self.car.hull.position - self.end_pos)
+        
+                    scaled_step_distance = (self.prev_dist - self.dist) * 10
 
-                    self.reward +=  step_distance * 2e-1
-                    step_reward += step_distance * 2e-1
+                    self.prev_dist = self.dist
+                    
+                    # distance
+                    self.reward +=  scaled_step_distance
+                    step_reward += scaled_step_distance
 
         if self.render_mode == "human":
             self.render()
