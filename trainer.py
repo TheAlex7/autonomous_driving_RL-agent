@@ -8,7 +8,7 @@ def make_env():
     return CityDrive(render_mode=None)
 
 if __name__ == "__main__":
-    for _ in range(200): # trains for a total of 20M steps
+    for _ in range(200): # trains for a total of 200 * 100,000 = 20M steps
         STEPS = 100_000
         INITIAL_MODEL = "models/ppo_initial"
         INITIAL_MODEL_PATH = INITIAL_MODEL + ".zip"
@@ -32,13 +32,13 @@ if __name__ == "__main__":
                 prev_path = base_path
 
         # Multiprocess training to speed up dev
-        env =  SubprocVecEnv([make_env for _ in range(8)]) 
+        env = make_env()# SubprocVecEnv([make_env for _ in range(8)]) 
 
         if not os.path.isfile(INITIAL_MODEL_PATH):
             # new initial model if it doesn't exist already
             model = PPO("MultiInputPolicy", 
                         env, 
-                        verbose=1, 
+                        verbose=0, 
                         batch_size = 4096,      # mini-batch size
                         learning_rate = 3e-4,  # Adam optimizer
                         ent_coef = 0.01        # encourages exploration
