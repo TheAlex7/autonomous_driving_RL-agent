@@ -8,6 +8,7 @@ __credits__ = ["Andrea PIERRÉ"]
 import math
 from typing import List
 import numpy as np
+import random
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -95,7 +96,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 30 #1000.0 / len(self.env.track) # Changed new tile reward to static value of 30
+                self.env.reward += 0 #1000.0 / len(self.env.track) # Changed new tile reward to static value of 30
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -249,6 +250,8 @@ class CityDrive(gym.Env, EzPickle):
         self.car: Car | None = None
         self.reward = 0.0
         self.prev_reward = 0.0
+        self.prev_dist = 0.0
+        self.dist = 0.0
         self.verbose = verbose
         self.new_lap = False
         self.fd_tile = fixtureDef(
@@ -346,8 +349,10 @@ class CityDrive(gym.Env, EzPickle):
         # Generate a square city-grid.
         # Start is (0,0) and Goal is random intersection.
 
-        GRID_W = self.vertical_streets  # number of vertical streets
-        GRID_H = self.horizontal_streets  # horizontal streets
+        # Randomize env a bit for more robust training
+        GRID_W = random.randint(2,self.vertical_streets)  # number of vertical streets
+        GRID_H = random.randint(2,self.horizontal_streets)  # horizontal streets
+
         BLOCK = 40  # grid spacing (size of each block)
         ROAD_WIDTH = TRACK_WIDTH
 
@@ -570,9 +575,9 @@ class CityDrive(gym.Env, EzPickle):
             # grass penalty
             on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
-                self.reward -= 100.0
-                step_reward = -100 # major penalty
-                terminated = True
+                self.reward -= 4.0
+                step_reward -= 4 # major penalty
+                # terminated = True # early stopping after sufficient early training
 
             # goal check
             if self.end_pos is not None:
@@ -585,6 +590,12 @@ class CityDrive(gym.Env, EzPickle):
                     self.reward += 100.0   # goal reward
                     step_reward = 100
                     terminated = True       # end episode
+                else:
+                    # small reward for getting closer
+                    self.dist = math.sqrt(dist_sq)
+                    step_distance = self.prev_dist - self.dist
+                    self.reward +=  step_distance * 2e-3
+                    step_reward += step_distance * 2e-3
 
         if self.render_mode == "human":
             self.render()
