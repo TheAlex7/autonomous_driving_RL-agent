@@ -5,16 +5,19 @@
 #   car is penalized for driving on grass.
 
 # REWARD SYSTEM
-NEW_ROAD = 0 # every new road visited: 0 # no reward
+NEW_ROAD = 4 # every new road visited: 0 # no reward
 # each new step: <TIME_PUNISHMENT> + (old_dist - new_dist) * DIST_SCALE
-TIME_PUNISHMENT = -0.1
-DIST_SCALE = 100
+# IF DISTANCE DELTA IS LESS THAN <delta_bound> THEN PUNISHMENT of <delta_punish>
+TIME_PUNISHMENT = 0#-0.1
+DIST_SCALE = 0.5
+DELTA_BOUND = 0.01
+DELTA_PUNISH = -0.3
 
-GRASS_PENALTY = -50 # grass penalty: -50 (no termination)
-GRASS_TERMINATE = False
+GRASS_PENALTY = 0 # grass penalty
+GRASS_TERMINATE = True # (termination boolean)
 
-GOAL_REWARD = 100 # goal reached: +100 (terminates)
-OUT_OF_BOUNDS_PENALTY = -100 # out of bounds: -100 (terminates)
+GOAL_REWARD = 150 #  (terminates)
+OUT_OF_BOUNDS_PENALTY = -100 # (terminates)
 
 __credits__ = ["Andrea PIERRÉ"]
 
@@ -591,7 +594,7 @@ class CityDrive(gym.Env, EzPickle):
             on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
                 if GRASS_TERMINATE:
-                    step_reward = 50 # major penalty
+                    step_reward = GRASS_PENALTY 
                     terminated = True # early stopping after sufficient early training
                 else:
                     self.reward += GRASS_PENALTY
@@ -601,19 +604,22 @@ class CityDrive(gym.Env, EzPickle):
                 # distance squared from goal
                 dist_sq = (car_x - self.end_pos[0]) ** 2 + (car_y - self.end_pos[1]) ** 2
                 goal_radius = TRACK_WIDTH * 1.2 # check
-                # print(dist_sq,goal_radius)
+                
                 if dist_sq < goal_radius ** 2:
-                    # print("should end now")
                     # self.reward += GOAL_REWARD  
                     step_reward = GOAL_REWARD
                     terminated = True       # end episode
                 else:
                     # reward for getting closer
                     self.dist = np.linalg.norm(self.car.hull.position - self.end_pos)
-                    scaled_step_distance = TIME_PUNISHMENT + (self.prev_dist - self.dist) * DIST_SCALE
+                    step_distance = (self.prev_dist - self.dist)
+                    if step_distance < DELTA_BOUND:
+                        scaled_step_distance = DELTA_PUNISH
+                    else:
+                        scaled_step_distance = step_distance * DIST_SCALE
                     self.prev_dist = self.dist
                     
-                    self.reward +=  scaled_step_distance
+                    self.reward +=  TIME_PUNISHMENT + scaled_step_distance
                     step_reward = self.reward - self.prev_reward
                     self.prev_reward = self.reward
 
@@ -621,7 +627,6 @@ class CityDrive(gym.Env, EzPickle):
         if self.render_mode == "human":
             self.render()
         
-        # print(self.car.hull.position[0],self.car.hull.position[1])
         return self.state, step_reward, terminated, truncated, info
 
     def render(self):
