@@ -95,7 +95,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 1000.0 / len(self.env.track)
+                self.env.reward += 30 #1000.0 / len(self.env.track) # Changed new tile reward to static value of 30
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -570,8 +570,8 @@ class CityDrive(gym.Env, EzPickle):
             # grass penalty
             on_road = any(self._point_in_poly(car_x, car_y, poly) for poly, _ in self.road_poly)
             if not on_road: # when car touches grass
-                self.reward -= 200.0
-                step_reward -= 200 # major penalty
+                self.reward -= 100.0
+                step_reward = -100 # major penalty
                 terminated = True
 
             # goal check
@@ -582,8 +582,8 @@ class CityDrive(gym.Env, EzPickle):
                 # print(dist_sq,goal_radius)
                 if dist_sq < goal_radius ** 2:
                     # print("should end now")
-                    step_reward = 200
-                    self.reward += 200.0   # goal reward
+                    self.reward += 100.0   # goal reward
+                    step_reward = 100
                     terminated = True       # end episode
 
         if self.render_mode == "human":
