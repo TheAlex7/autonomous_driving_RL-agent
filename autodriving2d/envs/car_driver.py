@@ -255,9 +255,8 @@ class CarDrive(gym.Env, EzPickle):
 
         # ADDED NEW OBS SPACE
         self.observation_space = spaces.Dict({
-            "image_array": spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8), # 255 x 255 image
-            "agent_loc"  : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32),   # [x, y] coordinates
-            "target_loc" : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32)    # [x, y] coordinates
+            "image_array": spaces.Box(low=0, high=255, shape=(STATE_W, STATE_H, 3), dtype=np.uint8), # 255 x 255 image
+            "dist_from_goal"  : spaces.Box(low=-PLAYFIELD, high=PLAYFIELD, shape=(2,), dtype=np.float32),   # [goal_x - x, goal_y - y]
         })
 
         # STATIC END POSITION DIRECTLY LEFT FROM START
@@ -669,13 +668,13 @@ class CarDrive(gym.Env, EzPickle):
             self.screen.blit(self.surf, (0, 0))
             pygame.display.flip()
         elif mode == "rgb_array":
-            return {"image_array":self._create_image_array(self.surf, (VIDEO_W, VIDEO_H)), 
-                    "agent_loc": (self.car.hull.position[0],self.car.hull.position[1]),
-                    "target_loc" : self.end_pos}
+            img = self._create_image_array(self.surf, (VIDEO_W, VIDEO_H))
+            return {"image_array":img, 
+                    "dist_from_goal": (self.end_pos[0] - self.car.hull.position[0], self.end_pos[1] - self.car.hull.position[1]),}
         elif mode == "state_pixels":
-            return {"image_array":self._create_image_array(self.surf, (STATE_W, STATE_H)), 
-                    "agent_loc": (self.car.hull.position[0],self.car.hull.position[1]),
-                    "target_loc" : self.end_pos}
+            img = self._create_image_array(self.surf, (STATE_H, STATE_W))
+            return {"image_array":img, 
+                    "dist_from_goal": (self.end_pos[0] - self.car.hull.position[0], self.end_pos[1] - self.car.hull.position[1]),}
         else:
             return self.isopen
 

@@ -358,18 +358,54 @@ class CityDrive(gym.Env, EzPickle):
             p1x, p1y = p2x, p2y
         return inside
 
-    def _create_track(self):
-        
+    def _random_valid_spawn(self):
+        """
+        Pick a random intersection & a direction pointing along a road (not into grass).
+        Returns (spawn_x, spawn_y, heading_angle).
+        """
 
+        # List of all road-connected intersection directions:
+        UP = 0
+        LEFT = math.pi / 2
+        DOWN = math.pi
+        RIGHT = - math.pi / 2
+
+        angle = UP
+        goal_x, goal_y = self.end_pos
+        car_ix, car_iy, car_x, car_y =  random.choice([
+                        (ix, iy, x,y)
+                        for ix,iy,x,y in self.intersections
+                        if (x,y) != (goal_x, goal_y) # cannot include goal
+                    ])
+
+        candidates = [UP,LEFT,DOWN,RIGHT]
+        if car_ix == 0: # LEFT SIDE OF GRID, CANT GO LEFT
+            candidates.pop(candidates.index(LEFT)) 
+        if car_iy == 0: # BOTTOM OF GRID
+            candidates.pop(candidates.index(DOWN))
+        if car_ix == self.grid_w - 1: # RIGHT OF GRID
+            candidates.pop(candidates.index(RIGHT))
+        if car_iy == self.grid_h: # TOP OF GRID
+            candidates.pop(candidates.index(UP))
+            
+        angle = random.choice(candidates)
+
+        return car_x, car_y, angle
+
+    def _create_track(self):
         # Generate a square city-grid.
         # Start is (0,0) and Goal is random intersection.
 
         # Randomize env a bit for more robust training
-        GRID_W = random.randint(2,self.vertical_streets)  # number of vertical streets
-        GRID_H = random.randint(2,self.horizontal_streets)  # horizontal streets
+        GRID_W = random.randint(3,self.vertical_streets)  # number of vertical streets
+        GRID_H = random.randint(3,self.horizontal_streets)  # horizontal streets
 
         BLOCK = 40  # grid spacing (size of each block)
         ROAD_WIDTH = TRACK_WIDTH
+
+        self.grid_w = GRID_W
+        self.grid_h = GRID_H
+        self.block = BLOCK
 
         intersections = []
         for iy in range(GRID_H):
@@ -378,11 +414,12 @@ class CityDrive(gym.Env, EzPickle):
                 y = iy * BLOCK
                 intersections.append((ix, iy, x, y))
 
-        # Starting point is always (0,0)
-        _, _, start_x, start_y = intersections[0]
+        self.intersections = intersections
 
-        # Random intersection not including start (0,0)
-        rand_idx = self.np_random.integers(1, len(intersections))
+        # Starting point is random and set in reset()
+        # _, _, start_x, start_y = intersections[0]
+
+        rand_idx = self.np_random.integers(0, len(intersections))
         _, _, goal_x, goal_y = intersections[rand_idx]
 
         # road segments for entire grid
@@ -476,7 +513,7 @@ class CityDrive(gym.Env, EzPickle):
             alpha = 0.0   # unused
             self.track.append((alpha, beta, x, y))
 
-        self.start_pos = (start_x, start_y)
+        # self.start_pos = (start_x, start_y)
         self.end_pos = (goal_x, goal_y)
 
         # Define Goal Intersection Polygon
@@ -536,7 +573,14 @@ class CityDrive(gym.Env, EzPickle):
                     "retry to generate track (normal if there are not many"
                     "instances of this message)"
                 )
-        self.car = Car(self.world, *self.track[0][1:4])
+        # self.car = Car(self.world, *self.track[0][1:4])
+
+        # get spawn position + heading (parallel to valid street)
+        spawn_x, spawn_y, heading = self._random_valid_spawn() # random intersection that isn't goal
+
+        # create car with our chosen angle (heading)
+        self.car = Car(self.world, heading, spawn_x, spawn_y)
+
         self.prev_dist = np.linalg.norm(self.car.hull.position- self.end_pos)
 
 

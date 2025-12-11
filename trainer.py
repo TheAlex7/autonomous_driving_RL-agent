@@ -8,7 +8,7 @@ def make_env():
     return CityDrive(render_mode=None)
 
 if __name__ == "__main__":
-    for _ in range(50): 
+    for _ in range(3): 
         STEPS = 10_000
         INITIAL_MODEL = "models/ppo_initial"
         INITIAL_MODEL_PATH = INITIAL_MODEL + ".zip"
