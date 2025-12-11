@@ -377,14 +377,16 @@ class CityDrive(gym.Env, EzPickle):
         angle = UP
         goal_x, goal_y = self.end_pos
         
-        if self.randomize_start:
-            car_ix, car_iy, car_x, car_y =  random.choice([
-                            (ix, iy, x,y)
-                            for ix,iy,x,y in self.intersections
-                            if (x,y) != (goal_x, goal_y) # cannot include goal
-                        ])
-        else:
+        if not self.randomize_start:
             car_ix, car_iy, car_x, car_y = self.intersections[0]
+            return car_x, car_y, angle
+        
+        car_ix, car_iy, car_x, car_y =  random.choice([
+                        (ix, iy, x,y)
+                        for ix,iy,x,y in self.intersections
+                        if (x,y) != (goal_x, goal_y) # cannot include goal
+                    ])
+            
 
         candidates = [UP,LEFT,DOWN,RIGHT]
         if car_ix == 0: # LEFT SIDE OF GRID, CANT GO LEFT

@@ -2,8 +2,8 @@ from stable_baselines3 import PPO
 from autodriving2d.envs import CityDrive
 import pygame
 
-env = CityDrive(render_mode="human", randomize_start=True)
-model = PPO.load("archived_not_random\models\ppo_citydrive+200k")
+env = CityDrive(render_mode="human", randomize_start=False)
+model = PPO.load("models\\archived_not_random\ppo_citydrive+320k")
 
 quit = False
 while not quit:
