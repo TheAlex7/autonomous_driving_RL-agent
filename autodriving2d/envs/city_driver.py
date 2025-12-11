@@ -393,7 +393,7 @@ class CityDrive(gym.Env, EzPickle):
             candidates.pop(candidates.index(DOWN))
         if car_ix == self.grid_w - 1: # RIGHT OF GRID
             candidates.pop(candidates.index(RIGHT))
-        if car_iy == self.grid_h: # TOP OF GRID
+        if car_iy == self.grid_h - 1: # TOP OF GRID
             candidates.pop(candidates.index(UP))
             
         angle = random.choice(candidates)

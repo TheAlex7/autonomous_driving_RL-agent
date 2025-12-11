@@ -3,7 +3,7 @@ from autodriving2d.envs import CityDrive
 import pygame
 
 env = CityDrive(render_mode="human", randomize_start=True)
-model = PPO.load("models\ppo_citydrive+380k")
+model = PPO.load("archived_not_random\models\ppo_citydrive+200k")
 
 quit = False
 while not quit:
