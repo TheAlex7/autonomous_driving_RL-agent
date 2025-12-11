@@ -3,7 +3,7 @@ from autodriving2d.envs import CityDrive
 import pygame
 
 env = CityDrive(render_mode="human", num_streets=8)
-model = PPO.load("models\ppo_citydrive+660k")
+model = PPO.load("models with random spawn\ppo_citydrive+700k")
 
 quit = False
 while not quit:

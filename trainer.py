@@ -11,7 +11,7 @@ def make_env():
 if __name__ == "__main__":
     for _ in range(60): # this range X steps = total training steps
         STEPS = 10_000
-        INITIAL_MODEL = "models/ppo_initial"
+        INITIAL_MODEL = "models with random spawn/ppo_initial"
         INITIAL_MODEL_PATH = INITIAL_MODEL + ".zip"
 
         # Making sure new model wont override others and continue iterating
@@ -22,7 +22,7 @@ if __name__ == "__main__":
             # if additional_steps < 100:
             # else:
             #     additional_steps = f"{additional_steps/100}m".replace(".0","").replace(".","_") # rid of trailing 0 and rid of period in name
-            base_path = f"models/ppo_citydrive+{additional_steps}" 
+            base_path = f"models with random spawn/ppo_citydrive+{additional_steps}" 
             out_path = base_path+".zip"
             if not os.path.isfile(out_path):
                 if iter == 0:
