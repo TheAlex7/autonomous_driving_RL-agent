@@ -2,13 +2,14 @@ import gymnasium as gym
 from stable_baselines3 import PPO
 from autodriving2d.envs import CityDrive
 from stable_baselines3.common.vec_env import SubprocVecEnv
+import torch
 import os
 
 def make_env():
     return CityDrive(render_mode=None)
 
 if __name__ == "__main__":
-    for _ in range(50): 
+    for _ in range(60): # this range X steps = total training steps
         STEPS = 10_000
         INITIAL_MODEL = "models/ppo_initial"
         INITIAL_MODEL_PATH = INITIAL_MODEL + ".zip"
@@ -31,13 +32,14 @@ if __name__ == "__main__":
                 prev_path = base_path
 
         # Multiprocess training to speed up dev
-        env = SubprocVecEnv([make_env for _ in range(4)]) 
+        env = SubprocVecEnv([make_env for _ in range(12)]) 
 
         if not os.path.isfile(INITIAL_MODEL_PATH):
             # new initial model if it doesn't exist already
             model = PPO("MultiInputPolicy", 
                         env, 
                         verbose=1, 
+                        device="auto"
                         # batch_size = 4096      # mini-batch size
                         # learning_rate = 3e-3,  # Adam optimizer
                         # ent_coef = 0.01        # entropy coeff, encourages exploration
@@ -50,9 +52,11 @@ if __name__ == "__main__":
             # STEPS = 100_000 # initial should be trained on 300,000 time steps
             base_path = INITIAL_MODEL
         else:
-            model = PPO.load(prev_path, env=env)
+            model = PPO.load(prev_path, env=env, device="auto")
 
         # Train
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
         print("Training...")
         model.learn(total_timesteps=STEPS)
         model.save(base_path)
