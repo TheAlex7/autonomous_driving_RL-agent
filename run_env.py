@@ -34,7 +34,7 @@ def register_input():
             quit = True
 
 if __name__ == "__main__":
-    env = CityDrive(render_mode="human")
+    env = CityDrive(render_mode="human", randomize_start=True)
 
     obs, info = env.reset()
     a = np.array([0.0, 0.0, 0.0])

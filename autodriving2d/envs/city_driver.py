@@ -25,7 +25,6 @@ import math
 from typing import List
 import numpy as np
 import random
-import cv2
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -238,7 +237,8 @@ class CityDrive(gym.Env, EzPickle):
         lap_complete_percent: float = 1.0,
         domain_randomize: bool = False,
         continuous: bool = True,
-        num_streets: int = 4
+        num_streets: int = 4,
+        randomize_start: bool = False
     ):
         EzPickle.__init__(
             self,
@@ -247,7 +247,8 @@ class CityDrive(gym.Env, EzPickle):
             lap_complete_percent,
             domain_randomize,
             continuous,
-            num_streets
+            num_streets,
+            randomize_start
         )
         self.continuous = continuous
         self.domain_randomize = domain_randomize
@@ -266,8 +267,11 @@ class CityDrive(gym.Env, EzPickle):
         self.car: Car | None = None
         self.reward = 0.0
         self.prev_reward = 0.0
+
         self.prev_dist = 0.0
         self.dist = 0.0
+        self.randomize_start = randomize_start
+
         self.verbose = verbose
         self.new_lap = False
         self.fd_tile = fixtureDef(
@@ -372,6 +376,7 @@ class CityDrive(gym.Env, EzPickle):
 
         angle = UP
         goal_x, goal_y = self.end_pos
+        
         car_ix, car_iy, car_x, car_y =  random.choice([
                         (ix, iy, x,y)
                         for ix,iy,x,y in self.intersections
@@ -417,9 +422,10 @@ class CityDrive(gym.Env, EzPickle):
         self.intersections = intersections
 
         # Starting point is random and set in reset()
-        # _, _, start_x, start_y = intersections[0]
-
-        rand_idx = self.np_random.integers(0, len(intersections))
+        if self.randomize_start:
+            rand_idx = self.np_random.integers(0, len(intersections))
+        else:
+            rand_idx = self.np_random.integers(1, len(intersections)) # if not randomized, car will start at (0,0) so goal can't be first intersection
         _, _, goal_x, goal_y = intersections[rand_idx]
 
         # road segments for entire grid
