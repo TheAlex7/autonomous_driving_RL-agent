@@ -1,4 +1,9 @@
-# 271P Project: Autonomous Driving and Pathfinding in a 2D environment.
+# Autonomous Driving agent taught with Reinforcement Learning
+
+Project done by [@TheAlex7](https://github.com/TheAlex7), [@KaelynTaing](https://github.com/KaelynTaing), [@richZ-Z](https://github.com/richZ-Z/), and [@ninjadare](https://github.com/ninjadare) for AI 271P of the UCI MCS program.
+Custom Environment based off Box2D's CarRacing simulator compatible with OpenAI's Gymnasium API
+Demo/Intro Video: https://www.youtube.com/watch?v=hiqOwT89EEY
+
 The goal of this project is to create a Reinforcement Learning Agent with the use of Gymnasium. We decided we wanted to create an agent that can operate a car in a 2D plane and so we thought to modify Box2D's Car Racing in such a way that would reflect a car driving in a grid-like city.
 
 ## Custom Gym Environment Quick start
